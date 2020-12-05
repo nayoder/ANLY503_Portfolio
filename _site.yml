@@ -1,12 +1,16 @@
-name: "my-website"
+name: "viz-website"
 output_dir: "docs"
+output:
+  html_document:
+    css: styles.css
 navbar:
-  title: "My Website"
+  title: "Data Viz Portfolio"
   left:
     - text: "Home"
       href: index.html
-    - text: "About"
-      href: about.html
-  right:
-    - text: "Manual"
-      href: about.html
+    - text: "Exploring Bank Data"
+      href: bank.html
+    - text: "Visualizing Election and Unemployment Data"
+      href: geospatial.html
+    - text: "Lego Project"
+      href: lego.html
