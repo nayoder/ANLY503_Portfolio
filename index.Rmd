@@ -2,8 +2,6 @@
 title: "About"
 ---
 
-Hello, Website!
+Welcome to Nicole Yoder's portfolio for the Data Visualization course at Georgetown University's Data Science and Analytics MS program.
 
-For more information about simple R Markdown websites, please read the documentation at https://bookdown.org/yihui/rmarkdown/rmarkdown-site.html.
-
-Please also note that simple R Markdown sites are _not_ based on **blogdown**. They are probably good for websites with only a few Rmd documents. For larger-scale and more sophisticated websites (such as blogs), you may want to use **blogdown** instead: https://github.com/rstudio/blogdown.
+Use the navigation bar to see some homework assignments, as well as the final project. You can find all the code used to make this website and the visualizations at [this Github repository.](https://github.com/nayoder/ANLY503_Portfolio)

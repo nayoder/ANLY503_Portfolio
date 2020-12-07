@@ -2,8 +2,436 @@
 title: "Visualizing Election and Unemployment Data"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r general_setup, include=FALSE}
+### Setting chunk options and preparing to run Python
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      out.width = '100%',
+                      engine.path = list(python = 'C:/Users/nicol/Anaconda3/python.exe'))
+library(reticulate)
+py_run_string("import os as os")
+py_run_string("os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/nicol/anaconda3/Library/plugins/platforms'")
 ```
 
-Testing
+
+```{r ggplot_setup}
+### Setting up custom theme and colors
+
+# Loading tidyverse
+library(tidyverse)
+
+# Loading scales
+library(scales)
+
+# Loading Lato font
+library(showtext)
+font_add_google("Lato", "lato")
+showtext_auto()
+
+# Defining personal theme
+theme_ny <- function(){ 
+  font <- "lato"   #assign font family up front
+  
+  theme_classic(base_family = font) %+replace%    #using theme_classic as a base 
+                                                  # and then replacing elements I want to change
+    theme(
+      
+      #grid elements
+      panel.grid.major = element_line(),       #add major gridlines
+      axis.ticks = element_blank(),            #strip axis ticks
+      
+      #text elements
+      text = element_text(                     #all text
+        lineheight=0.5),               #line height (space between if \n is used)
+      
+      plot.title = element_text(               #title
+        size = 28,                     #set font size
+        face = 'bold',                 #bold typeface
+        margin = margin(t = 5, b=2),   #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.subtitle = element_text(            #subtitle
+        size = 28,                     #font size
+        margin = margin(b = 3),        #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.caption = element_text(             #caption
+        size = 14,                     #font size
+        hjust = 1),                    #right align
+      
+      axis.title = element_text(               #axis titles
+        size = 18),                    #font size
+      
+      axis.text.x = element_text(              #x-axis text
+        size = 16,                     #font size
+        margin = margin(t=1, b=8)),    #margin
+      
+      axis.text.y = element_text(              #y-axis text
+        size = 16,                     #font size
+        margin = margin(r=1, l=8),     #margin
+        hjust = 1),                    #right align
+      
+      #legend text elements
+      legend.title = element_text(             #legend title
+        size = 18),                    #font size
+      
+      legend.text = element_text(              #legend text
+        size = 16,                     #font size
+        hjust = 0),                    #left align
+      
+      #facet label elements
+      strip.text = element_text(               #facet label text
+        size = 18),                    #font size
+      
+      strip.background = element_rect(         #facet label background
+        color='white')                 #no outline
+      
+    )
+}
+
+
+theme_set(theme_ny())
+
+# Colors
+library(colorspace)
+qual <- qualitative_hcl(n=7, palette='Dark 3') #qualitative
+seq <- sequential_hcl(n=7, palette='PuBuGn') #sequential
+div <- diverging_hcl(n=7, palette='Tropic') #diverging
+```
+
+
+```{python plt_setup}
+#---------------------------------------- NOTE -----------------------------------------#
+# If you want to see my python version, change eval to TRUE for this and the last chunk.#
+#---------------------------------------------------------------------------------------#
+
+### Setting custom theme (colors will be used from R)
+# Loading necessary packages
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+
+# Starting with seaborn-white theme
+plt.style.use('seaborn-white')
+
+# Setting font size, axes, and gridlines (for some reason ggplot and matplotlib do not actually align??)
+params = {'figure.titlesize': 20,       # main iitle (plt.suptitle)
+          'axes.titlesize': 20,         # subtitle (plt.title)
+          'axes.labelsize': 14,         # x- and y-axes titles
+          'xtick.labelsize': 12,        # x-axis text 
+          'ytick.labelsize': 12,        # y-axis text
+          'legend.title_fontsize': 14,  # legend title
+          'legend.fontsize': 12,        # legend text
+          'xtick.color': '#4d4d4d',     # x-axis text (grey30)
+          'ytick.color': '#4d4d4d',     # y-axis text (grey30)
+          'axes.spines.right': False,   # remove right axis spine
+          'axes.spines.top': False,     # remove top axis spine
+          'axes.grid': True,            # add gridlines
+          'grid.color': '#ebebeb'}      # gridlines color (grey92)
+pylab.rcParams.update(params)
+
+
+# Changing font to Lato
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = 'Lato'
+```
+
+
+For this assignment, we received datasets with US election results and unemployment rates for each county and were tasked with creating panels of choropleths for Texas, California, and Pennsylvania in the years 2008, 2012, and 2012.
+
+
+
+```{r prep}
+#### Importing Libraries
+library(sf)
+library(patchwork)
+library(viridis)
+
+
+#### Wrangling Election Data
+presOG <- read_csv('data/countypres_2000-2016.csv')
+
+# (1) Filtering years, states, and candidate party
+# (2) Adding column for Republican percent of the vote
+# (3&4) Adding '0' to 4-number FIPS codes
+# (5) Removing unnecessary columns
+presDF <- presOG %>% 
+  filter(year %in% c(2008, 2012, 2016),
+         !(state_po %in% c('AK', 'HI')),
+         party == 'republican') %>% 
+  mutate(R_percent = round(100 * candidatevotes / totalvotes, 2)) %>% 
+  mutate(FIPS = as.character(FIPS)) %>% 
+  mutate(FIPStxt = case_when(nchar(FIPS)==4 ~ paste0('0', FIPS),
+                             TRUE ~ FIPS)) %>% 
+  select(-c(office, candidate, party, candidatevotes, totalvotes, version, FIPS))
+
+
+#### Wrangling Unemployment Data
+unempOG <- readxl::read_xls('data/Unemployment.xls', sheet=1, skip=7)
+
+# (1) Selecting FIPS and particular unemployment rate columns
+# (2) Creating a year/unemployment columns by pivoting the unemployment columns
+# (3) Removing 'Unemployment_rate_' from the year column
+#     and changing year column type from chr to int
+unempDF <- unempOG %>% 
+  select('FIPStxt', 'Unemployment_rate_2008', 
+         'Unemployment_rate_2012', 'Unemployment_rate_2016') %>% 
+  pivot_longer(-FIPStxt,
+               names_to = 'year',
+               values_to = 'unemployment_rate') %>% 
+  mutate(year = as.integer(str_replace(year, 'Unemployment_rate_', '')))
+
+
+# Merging election and unemployment data
+DF <- inner_join(presDF, unempDF, by=c('FIPStxt', 'year')) %>% 
+  rename(FIPS = FIPStxt)
+
+
+#### Wrangling Geospatial Data
+shp <- st_read("data/tl_2019_us_county-1/tl_2019_us_county.shp", quiet=TRUE)
+
+# (1) Merge the State FIPS codes with County FIPS codes
+# (2) Select only the FIPS and geometry columns
+shpDF <- data.frame(shp) %>% 
+  mutate(FIPS = paste0(STATEFP, COUNTYFP)) %>% 
+  select(FIPS, geometry)
+
+# Merging election/unemployment and geospatial data
+DF <- inner_join(DF, shpDF, by='FIPS')
+
+
+#### Preparing the Theme and Scales
+# Setting the theme so that everything is blank
+# (no axes, background, etc.)
+theme_set(theme_ny() +
+          theme(panel.border=element_blank(),
+                panel.grid.major=element_blank(),
+                axis.line=element_blank(),
+                axis.text.x=element_blank(),
+                axis.text.y=element_blank()))
+
+# Setting the gradient scale for election data
+vote_scale = scale_fill_gradient2(low = '#32346c',
+                                  mid = 'white',
+                                  high = '#b91f1f',
+                                  midpoint = 50,
+                                  name = "Percent that Voted Republican",
+                                  limits = c(0,100),
+                                  breaks = seq(10,90,20),
+                                  guide = guide_colorbar(direction='horizontal',
+                                                         title.position = "top"))
+
+# Setting the gradient scale for unemployment data
+unemp_scale = scale_fill_viridis(option = 'viridis',
+                                 name = "Unemployment Rate",
+                                 limits = c(0,30),
+                                 breaks = seq(5,25,10),
+                                 guide = guide_colorbar(direction='horizontal',
+                                                        title.position = "top"))
+
+
+#### Defining Helper Function for Plotting
+plotVoteUnemp <- function(State, Year, Type, Legend){
+  
+  # Set up ggplot with given state and year
+  plot <- DF %>% 
+    filter(state==State, year==Year) %>% 
+    ggplot()
+  
+  # For 'Vote' graphs, use the R_percent variable for fill and
+  # the vote_scale. I include the titles for these but not
+  # unemployment, since these will be on top.
+  if(Type=='Vote'){
+    plot <- plot +
+      geom_sf(aes(geometry=geometry, fill=R_percent)) +
+      vote_scale +
+      ggtitle(paste(State, Year))
+  }
+  
+  # For 'Unemp' graphs, use the unemployment_rate variable for
+  # fill and the unemp_scale.
+  if(Type=='Unemp'){
+    plot <- plot +
+      geom_sf(aes(geometry=geometry, fill=unemployment_rate)) +
+      unemp_scale
+  }
+  
+  # Remove legend if FALSE
+  # (the left and middle graphs won't have legends to reduce clutter)
+  if(Legend==FALSE){
+    plot <- plot +
+      theme(legend.position="none")
+  }
+  
+  return(plot)
+}
+```
+
+```{r graphing, fig.width=12, fig.height=16}
+#### Creating Plots and Arranging with Patchwork
+# California
+CA08vote <- plotVoteUnemp("California", 2008, 'Vote', FALSE)
+CA12vote <- plotVoteUnemp("California", 2012, 'Vote', FALSE)
+CA16vote <- plotVoteUnemp("California", 2016, 'Vote', TRUE)
+
+CA08unemp <- plotVoteUnemp("California", 2008, 'Unemp', FALSE)
+CA12unemp <- plotVoteUnemp("California", 2012, 'Unemp', FALSE)
+CA16unemp <- plotVoteUnemp("California", 2016, 'Unemp', TRUE)
+
+
+# Texas
+TX08vote <- plotVoteUnemp("Texas", 2008, 'Vote', FALSE)
+TX12vote <- plotVoteUnemp("Texas", 2012, 'Vote', FALSE)
+TX16vote <- plotVoteUnemp("Texas", 2016, 'Vote', TRUE)
+
+TX08unemp <- plotVoteUnemp("Texas", 2008, 'Unemp', FALSE)
+TX12unemp <- plotVoteUnemp("Texas", 2012, 'Unemp', FALSE)
+TX16unemp <- plotVoteUnemp("Texas", 2016, 'Unemp', TRUE)
+
+
+# Pennsylvania
+PA08vote <- plotVoteUnemp("Pennsylvania", 2008, 'Vote', FALSE)
+PA12vote <- plotVoteUnemp("Pennsylvania", 2012, 'Vote', FALSE)
+PA16vote <- plotVoteUnemp("Pennsylvania", 2016, 'Vote', TRUE)
+
+PA08unemp <- plotVoteUnemp("Pennsylvania", 2008, 'Unemp', FALSE)
+PA12unemp <- plotVoteUnemp("Pennsylvania", 2012, 'Unemp', FALSE)
+PA16unemp <- plotVoteUnemp("Pennsylvania", 2016, 'Unemp', TRUE)
+
+
+# Creating arrangement with patchwork
+patchwork <- ((CA08vote | CA12vote | CA16vote) /
+              (CA08unemp | CA12unemp | CA16unemp) /
+              (TX08vote | TX12vote | TX16vote) /
+              (TX08unemp | TX12unemp | TX16unemp) /
+              (PA08vote | PA12vote | PA16vote) /
+              (PA08unemp | PA12unemp | PA16unemp))
+  
+# (1) Adding a centered title and caption
+# (2) Adjusting heights of plots to make them about the same size
+#     (otherwise PA looked a lot bigger)
+patchwork + 
+  plot_annotation(
+    title = 'The Proportion of Votes Won by Republicans\nand Unemployment Rates in 2008, 2012, and 2016',
+    caption = 'Source: MIT Election Data and Science Lab',
+    theme = theme(plot.title = element_text(hjust = 0.5))
+    ) +
+  plot_layout(heights=c(2.2, 2.2, 2, 2, 1.2, 1.2))
+```
+
+
+
+
+```{python python_version}
+### Python
+# This was my python implementation for the assignment. I'm not running this portion for the portfolio, since I completed all the choropleths in R already.
+
+### Note from original homework:
+# I ran out of time to do this well, but here is an imperfect group of California plots.
+# Note: For some reason one or two of the plots won't appear when I knit, 
+# even though this worked fine in Spyder.
+
+import geopandas
+
+
+#### Wrangling election data
+presOG = pd.read_csv('data/countypres_2000-2016.csv')
+
+# Filtering years
+presDF = presOG[presOG.year.isin([2008,2012,2016])]
+
+# Filtering states
+presDF = presDF[presDF.state_po.isin(['TX','CA','PA'])]
+
+# Filtering candidate party
+presDF = presDF[presDF['party']=='republican']
+
+# Adding column corresponding to the percent of the vote received
+# by the candidate (republican)
+presDF.loc[:, 'R_percent'] = round(100 * presDF['candidatevotes'] / presDF['totalvotes'], 2)
+
+
+# Removing unnecessary columns
+presDF = presDF.drop(columns=['office', 'candidate', 'party',
+                              'candidatevotes', 'totalvotes', 'version'])
+
+
+#### Wrangling unemployment data
+unempOG = pd.read_excel('data/Unemployment.xls', sheet_name=0, skiprows=range(0,7))
+
+# Selecting FIPS and particular unemployment rate columns
+unempDF = unempOG[['FIPStxt', 'Unemployment_rate_2008',
+                   'Unemployment_rate_2012', 'Unemployment_rate_2016']]
+
+
+
+# Creating a year column and pivoting the unemployment rate columns
+unempDF = (pd.melt(unempDF, 
+                   id_vars='FIPStxt',
+                   var_name='year', value_name='unemployment_rate')
+           )
+# Removing 'Unemployment_rate_' from the year column
+unempDF['year'] = unempDF['year'].str.replace('Unemployment_rate_', '').astype('int64')
+
+
+
+#### Merging election and unemployment data
+DF = presDF.merge(unempDF, left_on=['FIPS', 'year'], right_on=['FIPStxt', 'year'])
+
+# Removing FIPStxt column
+DF = DF.drop(columns=['FIPStxt'])
+
+# Fix FIPS column so that it is always five digits (CA code is missing first '0')
+DF['FIPS'] = DF['FIPS'].astype('int').astype('str')
+DF['FIPS'] = DF.apply(lambda x: '0'+x.FIPS if len(x.FIPS)==4 else x.FIPS, axis=1)
+
+
+# Reading shape file
+shp = geopandas.read_file("data/tl_2019_us_county-1/tl_2019_us_county.shp")
+
+# Merging the State FIPS codes with County FIPS codes
+shpDF = shp.assign(FIPS = shp['STATEFP'] + shp['COUNTYFP'])
+
+# Select only the FIPS and geometry columns
+shpDF = shpDF[['FIPS', 'geometry']]
+
+# Merging election/unemployment and geospatial data
+DF = shpDF.merge(DF, on='FIPS')
+
+
+
+#### Graphing California's election and unemployment data
+caDF = DF.loc[DF['state']=='California']
+
+fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(8,10))
+axes_list = [item for sublist in axes for item in sublist] 
+
+for year, df in caDF.groupby("year"):
+    
+    # Plotting R percent
+    ax = axes_list.pop(0)
+    df.plot(column='R_percent', ax=ax, legend=True)
+    ax.set_title(f'Percent Republican in {year}')
+    ax.set_axis_off()
+    
+    # Plotting unemployment
+    ax = axes_list.pop(0)
+    df.plot(column='unemployment_rate', ax=ax, legend=True)
+    ax.set_title(f'Unemployment Rate in {year}')
+    ax.set_axis_off()
+
+
+for ax in axes_list:
+    ax.remove()
+
+plt.tight_layout()
+plt.show()
+```

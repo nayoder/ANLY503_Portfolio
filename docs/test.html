@@ -11,7 +11,7 @@
 
 
 
-<title>Lego Project</title>
+<title>Visualizing Election and Unemployment Data</title>
 
 <script src="site_libs/header-attrs-2.5/header-attrs.js"></script>
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
@@ -308,27 +308,38 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Lego Project</h1>
+<h1 class="title toc-ignore">Visualizing Election and Unemployment Data</h1>
 
 </div>
 
 
-<div id="header-1" class="section level1">
-<h1>Header 1</h1>
-<div id="header-2" class="section level2">
-<h2>Header 2</h2>
-<div id="header-3" class="section level3">
-<h3>Header 3</h3>
-<div id="header-4" class="section level4">
-<h4>Header 4</h4>
-<div id="header-5" class="section level5">
-<h5>Header 5</h5>
-<div id="header-6" class="section level6">
-<h6>Header 6</h6>
+<div id="task-1" class="section level2">
+<h2>Task 1</h2>
+<blockquote>
+<p>Explore all accounts. Create visualizations that combines these account characteristics:</p>
+<ul>
+<li>Whether an account has a credit card or not</li>
+<li>Whether an account has a loan or not</li>
+<li>The average balance for the account</li>
+</ul>
+</blockquote>
+<p>I chose to use faceted histograms, so that I could quickly get a sense of how many accounts fell into each category and the general distribution of the average balances for each group.</p>
+<p>We see that most accounts do not have credit cards or loans. Both groups with no loans are skewed right with their average balances, while the other groups are more symmetric.</p>
+<p>If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.</p>
+<p><img src="test_files/figure-html/task1-1.png" width="576" /></p>
 </div>
-</div>
-</div>
-</div>
+<div id="task-2" class="section level2">
+<h2>Task 2</h2>
+<blockquote>
+<p>What is the distribution of all loans and what are their characteristics?</p>
+</blockquote>
+<div id="part-1-plotting-distribution-of-loan-amounts" class="section level5">
+<h5>Part 1: Plotting Distribution of Loan Amounts</h5>
+<p>I’m assuming “distribution of all loans” is referring to the distribution of loan amounts.</p>
+<p>We see that the the distribution of loan amounts is right skewed with 50% of the accounts having loans between $0 - $117,000 and the other 50% between $117,000 - $600,000.</p>
+<p><img src="test_files/figure-html/task2_part1-1.png" width="100%" /></p>
+<p>Test 2</p>
+<p><img src="test_files/figure-html/task2_part12-1.png" width="384px" height="288px" /></p>
 </div>
 </div>
 

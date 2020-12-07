@@ -2,8 +2,448 @@
 title: "Exploring Bank Data"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r general_setup, include=FALSE}
+### Setting chunk options and preparing to run Python
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      out.width = '100%',
+                      engine.path = list(python = 'C:/Users/nicol/Anaconda3/python.exe'))
+library(reticulate)
+py_run_string("import os as os")
+py_run_string("os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/nicol/anaconda3/Library/plugins/platforms'")
 ```
 
-Testing
+
+```{r ggplot_setup}
+### Setting up custom theme and colors
+
+# Loading tidyverse
+library(tidyverse)
+
+# Loading scales
+library(scales)
+
+# Loading Lato font
+library(showtext)
+font_add_google("Lato", "lato")
+showtext_auto()
+
+# Defining personal theme
+theme_ny <- function(){ 
+  font <- "lato"   #assign font family up front
+  
+  theme_classic(base_family = font) %+replace%    #using theme_classic as a base 
+                                                  # and then replacing elements I want to change
+    theme(
+      
+      #grid elements
+      panel.grid.major = element_line(),       #add major gridlines
+      axis.ticks = element_blank(),            #strip axis ticks
+      
+      #text elements
+      text = element_text(                     #all text
+        lineheight=0.5),               #line height (space between if \n is used)
+      
+      plot.title = element_text(               #title
+        size = 28,                     #set font size
+        face = 'bold',                 #bold typeface
+        margin = margin(t = 5, b=2),   #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.subtitle = element_text(            #subtitle
+        size = 28,                     #font size
+        margin = margin(b = 3),        #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.caption = element_text(             #caption
+        size = 14,                     #font size
+        hjust = 1),                    #right align
+      
+      axis.title = element_text(               #axis titles
+        size = 18),                    #font size
+      
+      axis.text.x = element_text(              #x-axis text
+        size = 16,                     #font size
+        margin = margin(t=1, b=8)),    #margin
+      
+      axis.text.y = element_text(              #y-axis text
+        size = 16,                     #font size
+        margin = margin(r=1, l=8),     #margin
+        hjust = 1),                    #right align
+      
+      #legend text elements
+      legend.title = element_text(             #legend title
+        size = 18),                    #font size
+      
+      legend.text = element_text(              #legend text
+        size = 16,                     #font size
+        hjust = 0),                    #left align
+      
+      #facet label elements
+      strip.text = element_text(               #facet label text
+        size = 18),                    #font size
+      
+      strip.background = element_rect(         #facet label background
+        color='white')                 #no outline
+      
+    )
+}
+
+
+theme_set(theme_ny())
+
+# Colors
+library(colorspace)
+qual <- qualitative_hcl(n=7, palette='Dark 3') #qualitative
+seq <- sequential_hcl(n=7, palette='PuBuGn') #sequential
+div <- diverging_hcl(n=7, palette='Tropic') #diverging
+```
+
+
+```{python plt_setup}
+### Setting custom theme (colors will be used from R)
+# Loading necessary packages
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+
+# Starting with seaborn-white theme
+plt.style.use('seaborn-white')
+
+# Setting font size, axes, and gridlines (for some reason ggplot and matplotlib do not actually align??)
+params = {'figure.titlesize': 20,       # main iitle (plt.suptitle)
+          'axes.titlesize': 20,         # subtitle (plt.title)
+          'axes.labelsize': 14,         # x- and y-axes titles
+          'xtick.labelsize': 12,        # x-axis text 
+          'ytick.labelsize': 12,        # y-axis text
+          'legend.title_fontsize': 14,  # legend title
+          'legend.fontsize': 12,        # legend text
+          'xtick.color': '#4d4d4d',     # x-axis text (grey30)
+          'ytick.color': '#4d4d4d',     # y-axis text (grey30)
+          'axes.spines.right': False,   # remove right axis spine
+          'axes.spines.top': False,     # remove top axis spine
+          'axes.grid': True,            # add gridlines
+          'grid.color': '#ebebeb'}      # gridlines color (grey92)
+pylab.rcParams.update(params)
+
+
+# Changing font to Lato
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = 'Lato'
+```
+
+For this assignment, we received two datasets from a fake bank and were tasked with exploring various account characteristics and relationships between variables. Before jumping into the tasks, here is an overview of each dataset:
+
+
+The `transactions.csv` contains all of the bank's transactions.
+
+| Field Name | Description |
+|:--|:----|
+| `id` | Unique record identifier |
+| `account_id` | Account identifier | 
+| `date` | Transaction date |
+| `type` | Debit or Credit |
+| `amount` | Amount of transaction |
+| `balance` | Account balance after the transaction is executed |
+| `bank` | The two letter code of the other bank if the transaction is a bank transfer |
+| `account` | The account number of the other bank if the transaction is a bank transfer |
+| `method` | Method of transaction: can be bank transfer, cash, or credit card | 
+| `category` | What the transaction was for |
+
+
+The `accounts_analytical.csv` file contains the following information for every account. There is one record per account. 4,500 rows and 64 columns.
+
+|Field Name |Description |
+|:--|:----|
+|`account_id`               | Account number           |
+|`acct_creation_date`       | Date when account was opened           |
+|`statement_frequency`      | The frequency that statements are generated for the account |
+|`account_district`         | Name of the district where the account is           |
+|`num_customers`            | The total number of clients associated with the account (owner and users) |
+|`credit_cards`             | Number of credit cards for an account or zero if none           |
+|`loan_date`                | The date the loan was issued           |
+|`loan_amount`              | The amount of the loan           |
+|`loan_payment`             | The amount of the loan payment           |
+|`loan_term`                | The duration of loan in months           |
+|`loan_status`              | The status of the loan (current or expired)           |
+|`loan_default`             | T/F if the loan is in default           |
+|`max_withdrawal`           | Maximum debit amount for the account           |
+|`min_withdrawal`           | Minimum debit amount for the account           |
+|`max_balance`              | Maximum balance for the account           |
+|`min_balance`              | Minimum balance for the account           |
+|`credit_xxxxx_yyyyy_zzzzz` | Summary statistics for all types of **credit** type transactions where: <br/> * `xxxxx` can be: cash, bank transfer or other <br/> * `yyyyy` can be: pension benefit, interest credit, or other <br/> * `zzzzz` can be transaction count (txn\_ct), transaction totals (txn\_tot) or average transaction amount (avg_txn) |
+|`debit_xxxxx_yyyyy_zzzzz`  | Summary statistics for all types of **debit** type transactions where: <br/> * `xxxxx` can be: cash, bank transfer or credit card <br/> * `yyyyy` can be: household payment, insurance payment, loan payment, negative balance charge, statement charge, or other <br/> * `zzzzz` can be transaction count (txn\_ct), transaction totals (txn\_tot) or average transaction amount (avg_txn) |
+|`pmt_order_ct`             | Number of payment orders for the account           |
+|`pmt_order_avg_amt`        | The average amount for the payment orders           |
+|`owner_client_id`          | Client ID           |
+|`gender`                   | Client gender           |
+|`birth_date`               | Client birth date           |
+|`owner_district`           | Client district           |
+
+
+
+## Task 1
+>Explore all accounts. Create visualizations that combines these account characteristics:
+>
+>- Whether an account has a credit card or not
+>- Whether an account has a loan or not
+>- The average balance for the account
+
+I chose to use faceted histograms, so that I could quickly get a sense of how many accounts fell into each category and the general distribution of the average balances for each group.
+
+We see that most accounts do not have credit cards or loans. Both groups with no loans are skewed right with their average balances, while the other groups are more symmetric. 
+
+If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.
+
+```{python task1}
+#### Reading in data
+accounts = pd.read_csv("data/accounts_analytical.csv")
+transactions = pd.read_csv("data/transactions.csv")
+
+#### Setting up the data frame
+# Getting average balance for each account from the transactions data
+avg_balDF = (transactions
+             .groupby('account_id', as_index=False)
+             .agg({'balance': 'mean'})
+             .rename(columns={'balance':'avg_balance'}))
+
+# Creating columns for whether or not the account uses credit cards or loans,
+# then adding the average balance
+cc_loansDF = accounts.assign(
+    cc_user = np.where(pd.isna(accounts['credit_cards']), 'No Credit Cards', 'Has Credit Card(s)'),
+    loan_user = np.where(pd.isna(accounts['loan_date']), 'No Loans', 'Has Loan(s)'))
+
+cc_loansDF = cc_loansDF[['account_id', 'cc_user', 'loan_user']]
+
+cc_loans_balDF = cc_loansDF.merge(avg_balDF)
+
+
+#### Plotting faceted histograms
+p = sns.FacetGrid(cc_loans_balDF, col="cc_user",
+                  row="loan_user", margin_titles=True)
+p = p.map_dataframe(sns.histplot, x="avg_balance", bins=20, edgecolor=r.seq[2], color=r.seq[2], alpha=1)
+p = p.set_axis_labels("Average Balance", "Frequency")
+
+# Fixing the titles to be like ggplot
+p = p.set_titles(row_template = '{row_name}', col_template = '{col_name}')
+
+plt.subplots_adjust(top=0.8, left=0.1, bottom=0.1) # The axes titles were getting cut off without this
+plt.suptitle('Account Average Balance by\nLoan and Credit Card Use', 
+             fontweight='bold', y=.95)
+plt.show()
+```
+
+
+
+## Task 2
+>What is the distribution of all loans and what are their characteristics?
+
+```{r task2_setup}
+#### Reading in data
+accounts <- read_csv("data/accounts_analytical.csv")
+
+#### Setting up dataframe
+# Selecting loan-related columns and removing accounts that did not have loans
+loanDF <- accounts %>% 
+  select(account_id, starts_with('loan')) %>% 
+  filter(!is.na(loan_date))
+```
+
+
+##### Part 1: Plotting Distribution of Loan Amounts
+I'm assuming "distribution of all loans" is referring to the distribution of loan amounts.
+
+We see that the the distribution of loan amounts is right skewed with 50% of the accounts having loans between \$0 - \$117,000 and the other 50% between \$117,000 - \$600,000.
+
+```{r task2_part1}
+loanDF %>% 
+  ggplot(aes(x=loan_amount)) +
+  geom_histogram(breaks=seq(0,600000,20000), fill=seq[3]) + # new bar every $20,000
+  geom_vline(aes(xintercept = median(loan_amount)), linetype='dashed', col='grey30', size=0.5) +
+  geom_text(mapping = aes(x = median(loan_amount), y = 0,
+                          label = 'Median \U2248 117,000'),
+            size = 6,
+            hjust = -0.05, vjust = -0.6,
+            color='grey30') +
+  scale_x_continuous(labels = comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(labels = comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Loan Amount ($)',
+       y='Frequency',
+       title=paste0('Distribution of Loan Amounts (n = ', nrow(loanDF), ')'))
+```
+
+
+##### Part 2: Plotting Loan Details (Amount, Payment, Status, Default, Term)
+This plot shows the inherent linear relationship between the loan amount, payment, and term, since
+$$Payment = \frac{1}{Term} * Amount.$$
+
+Before I made this plot, I thought that defaulted accounts may be clustered somehow, like those with higher amounts or shorter terms. However, there doesn't seem to be a pattern to the defaulted accounts.
+
+```{r task2_part2}
+# Loan amount, payment, term, default status
+loanDF %>% 
+  mutate(loan_term = as.character(loan_term)) %>% 
+  ggplot(aes(x=loan_amount, y=loan_payment, color=loan_default, shape=loan_term)) +
+  geom_point(alpha=0.9) +
+  scale_color_manual(values=c(div[1], div[7])) +
+  lemon::facet_rep_grid(loan_status~.) +  # makes x-axis present for both facets
+  scale_x_continuous(labels = comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(labels = comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Loan Amount ($)',
+       y='Loan Payment ($)',
+       title='Loan Payment vs. Loan Amount by Loan Status') +
+  guides(color=guide_legend(title='Loan Defaulted?'),
+         shape=guide_legend(title='Loan Term (Months)'))
+```
+
+
+
+## Task 3
+>Is there a relationship between a good or bad loan and the time between an account is opened an the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?
+
+Looking at these boxplots, we see that the two groups of accounts have almost exactly the same range, but the IQR and median is slightly lower for defaulted accounts, so borrowers who get a loan soon after opening an account may be more likely to default.
+
+```{r task3}
+#### Setting up dataframe
+# Selecting loan-related columns, removing accounts that did not have loans,
+# and adding column that calculates how many days after the account creation
+# that the loan was created
+loanDF <- accounts %>% 
+  select(account_id, acct_creation_date, starts_with('loan')) %>% 
+  filter(!is.na(loan_date)) %>% 
+  mutate(acct_loan_diff = loan_date - acct_creation_date)
+
+#### Plotting Default Status vs. Time Open
+loanDF %>% 
+  ggplot(aes(x=acct_loan_diff, y=loan_default, color=loan_default))+
+  geom_boxplot(width=0.4) +
+  scale_color_manual(values=c(div[7], div[1])) +
+  labs(x='Loan Start Date - Account Start Date (days)',
+       y='Loan Defaulted?',
+       title='Loan Default Status vs. Loan and Account Start Date Difference') +
+  theme(legend.position='none')
+```
+
+
+## Task 4
+>For the account with the highest number of transactions, make a time series line plot for the behavior of the account over time, including all debits and credits, the different methods, and with the different categories.
+
+I'm not exactly happy with this plot. I used a time series of the balance, so we could easily see the credits and debits as the line moves up and down. Then I added points that would show the category (using color) and method (using shape). Unfortunately, when the method was missing, those points were removed (first plot). But when I changed NA to 'missing' so that those points would show up (second plot), it seems like they covered up a lot of the statement charge points. I tried using jitter to make more points visible, but I don't really like how it looks. Changing the transparency makes the points hard to discern, since there is a lot going on in this plot.
+
+Let me know if you have any ideas for making this better!
+
+```{r task4}
+#### Loading lubridate and reading data
+library(lubridate)
+transactions <- read_csv("data/transactions.csv")
+
+#### Setting up the data frame
+# define getmode function to find the account id that occurs the most
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+# common_date is to help me facet by year 
+# (otherwise the x-axis still includes all the years)
+most_txnDF <- transactions %>% 
+  filter(account_id == getmode(transactions$account_id)) %>% 
+  mutate(year = year(date),
+         common_date = as.Date(paste0("2000-",format(date, "%j")), "%Y-%j"),
+         category = ifelse(is.na(category), 'missing', category))
+
+
+#### Plotting Transactions over Time
+# First, remove NA method (no point)
+most_txnDF %>% 
+  ggplot(aes(x=common_date, y=balance)) +
+  geom_line() +
+  geom_jitter(aes(shape=method, color=category),
+              alpha=0.7, height=1000) +
+  facet_grid(year~.) +
+  scale_color_manual(values=qual) +
+  scale_x_date(date_breaks="1 month",
+               limits = c(as.Date('2000-01-01'), as.Date('2000-12-31')),
+               labels=function(x) format(x, "%b"),
+               expand = expansion(mult = c(0, 0.005))) +
+  scale_y_continuous(labels = comma,
+                     limits = c(0, 70000),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x='',
+       y='Balance ($)',
+       title='Balance and Transaction Types over Time')
+
+
+# Second, recode NA method so that those points appear
+most_txnDF %>% 
+  ggplot(aes(x=common_date, y=balance)) +
+  geom_line() +
+  geom_jitter(aes(shape=ifelse(is.na(method), 'missing', method), color=category),
+              alpha=0.7, height=2000) +
+  facet_grid(year~.) +
+  scale_color_manual(values=qual) +
+  scale_x_date(date_breaks="1 month",
+               limits = c(as.Date('2000-01-01'), as.Date('2000-12-31')),
+               labels=function(x) format(x, "%b"),
+               expand = expansion(mult = c(0, 0.005))) +
+  scale_y_continuous(labels = comma,
+                     limits = c(0, 70000),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x='',
+       y='Balance ($)',
+       title='Balance and Transaction Types over Time') +
+  guides(shape=guide_legend(title='method'))
+```
+
+
+
+## Task 5
+>Explore the validity of the data for the case whether or not an account has a credit card and whether or not they have associated credit card transactions. Is there anything worth noting?
+
+I used a heatmap to quickly get a sense of the four groups of accounts. There is definitely a data validity issue, since 80% of the accounts that had at least one credit card didn't have any credit card transactions. In addition, about 18% of the accounts that had no credit cards somehow still had credit card transactions.
+
+```{r task5}
+#### Setting up the data frame
+# Getting the frequencies for the four combinations of whether or not accounts had a credit card
+# and whether or not they had credit card transactions
+
+# I also got the relative frequency (percent of accounts with/without credit cards that fell into 
+# each category
+ccDF <- accounts %>% 
+  mutate(has_cc = ifelse(is.na(credit_cards), 'No', 'Yes'),
+         has_txn = ifelse(debit_credit_card_other_txn_ct==0, 'No', 'Yes')) %>% 
+  select(has_cc, has_txn) %>% 
+  group_by(has_cc, has_txn) %>% 
+  summarize(n = n()) %>% 
+  mutate(rel_freq = round(100* n / sum(n), 2))
+
+
+#### Plotting Credit Card Holders/Non-Holders vs. Credit Card Transactions
+ggplot(ccDF, aes(x=has_txn, y=has_cc, fill=rel_freq)) + 
+  geom_tile() +
+  geom_text(aes(label=paste0('n = ', n, '\nrelative frequency = ', rel_freq, '%')),
+            color='grey50',
+            size=6) +
+  scale_fill_continuous_sequential(labels = percent_format(scale=1),
+                                   palette='PuBuGn') +
+  scale_x_discrete(expand = expansion(mult = c(0, 0))) +
+  scale_y_discrete(expand = expansion(mult = c(0, 0))) +
+  theme(axis.line = element_blank(),
+        panel.grid = element_blank()) +
+  labs(x='Has Credit Card Transactions',
+       y='Has Credit Card(s)',
+       title='Comparing Credit Card Holding Status\nwith Credit Card Transactions',
+       fill='Relative\nFrequency')
+```

@@ -313,7 +313,231 @@ $(document).ready(function () {
 </div>
 
 
-<p>Testing</p>
+<p>For this assignment, we received two datasets from a fake bank and were tasked with exploring various account characteristics and relationships between variables. Before jumping into the tasks, here is an overview of each dataset:</p>
+<p>The <code>transactions.csv</code> contains all of the bank’s transactions.</p>
+<table>
+<colgroup>
+<col width="37%" />
+<col width="62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Field Name</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>id</code></td>
+<td align="left">Unique record identifier</td>
+</tr>
+<tr class="even">
+<td align="left"><code>account_id</code></td>
+<td align="left">Account identifier</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>date</code></td>
+<td align="left">Transaction date</td>
+</tr>
+<tr class="even">
+<td align="left"><code>type</code></td>
+<td align="left">Debit or Credit</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>amount</code></td>
+<td align="left">Amount of transaction</td>
+</tr>
+<tr class="even">
+<td align="left"><code>balance</code></td>
+<td align="left">Account balance after the transaction is executed</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>bank</code></td>
+<td align="left">The two letter code of the other bank if the transaction is a bank transfer</td>
+</tr>
+<tr class="even">
+<td align="left"><code>account</code></td>
+<td align="left">The account number of the other bank if the transaction is a bank transfer</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>method</code></td>
+<td align="left">Method of transaction: can be bank transfer, cash, or credit card</td>
+</tr>
+<tr class="even">
+<td align="left"><code>category</code></td>
+<td align="left">What the transaction was for</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>accounts_analytical.csv</code> file contains the following information for every account. There is one record per account. 4,500 rows and 64 columns.</p>
+<table>
+<colgroup>
+<col width="37%" />
+<col width="62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Field Name</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>account_id</code></td>
+<td align="left">Account number</td>
+</tr>
+<tr class="even">
+<td align="left"><code>acct_creation_date</code></td>
+<td align="left">Date when account was opened</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>statement_frequency</code></td>
+<td align="left">The frequency that statements are generated for the account</td>
+</tr>
+<tr class="even">
+<td align="left"><code>account_district</code></td>
+<td align="left">Name of the district where the account is</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>num_customers</code></td>
+<td align="left">The total number of clients associated with the account (owner and users)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>credit_cards</code></td>
+<td align="left">Number of credit cards for an account or zero if none</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>loan_date</code></td>
+<td align="left">The date the loan was issued</td>
+</tr>
+<tr class="even">
+<td align="left"><code>loan_amount</code></td>
+<td align="left">The amount of the loan</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>loan_payment</code></td>
+<td align="left">The amount of the loan payment</td>
+</tr>
+<tr class="even">
+<td align="left"><code>loan_term</code></td>
+<td align="left">The duration of loan in months</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>loan_status</code></td>
+<td align="left">The status of the loan (current or expired)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>loan_default</code></td>
+<td align="left">T/F if the loan is in default</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>max_withdrawal</code></td>
+<td align="left">Maximum debit amount for the account</td>
+</tr>
+<tr class="even">
+<td align="left"><code>min_withdrawal</code></td>
+<td align="left">Minimum debit amount for the account</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>max_balance</code></td>
+<td align="left">Maximum balance for the account</td>
+</tr>
+<tr class="even">
+<td align="left"><code>min_balance</code></td>
+<td align="left">Minimum balance for the account</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>credit_xxxxx_yyyyy_zzzzz</code></td>
+<td align="left">Summary statistics for all types of <strong>credit</strong> type transactions where: <br/> * <code>xxxxx</code> can be: cash, bank transfer or other <br/> * <code>yyyyy</code> can be: pension benefit, interest credit, or other <br/> * <code>zzzzz</code> can be transaction count (txn_ct), transaction totals (txn_tot) or average transaction amount (avg_txn)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>debit_xxxxx_yyyyy_zzzzz</code></td>
+<td align="left">Summary statistics for all types of <strong>debit</strong> type transactions where: <br/> * <code>xxxxx</code> can be: cash, bank transfer or credit card <br/> * <code>yyyyy</code> can be: household payment, insurance payment, loan payment, negative balance charge, statement charge, or other <br/> * <code>zzzzz</code> can be transaction count (txn_ct), transaction totals (txn_tot) or average transaction amount (avg_txn)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>pmt_order_ct</code></td>
+<td align="left">Number of payment orders for the account</td>
+</tr>
+<tr class="even">
+<td align="left"><code>pmt_order_avg_amt</code></td>
+<td align="left">The average amount for the payment orders</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>owner_client_id</code></td>
+<td align="left">Client ID</td>
+</tr>
+<tr class="even">
+<td align="left"><code>gender</code></td>
+<td align="left">Client gender</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>birth_date</code></td>
+<td align="left">Client birth date</td>
+</tr>
+<tr class="even">
+<td align="left"><code>owner_district</code></td>
+<td align="left">Client district</td>
+</tr>
+</tbody>
+</table>
+<div id="task-1" class="section level2">
+<h2>Task 1</h2>
+<blockquote>
+<p>Explore all accounts. Create visualizations that combines these account characteristics:</p>
+<ul>
+<li>Whether an account has a credit card or not</li>
+<li>Whether an account has a loan or not</li>
+<li>The average balance for the account</li>
+</ul>
+</blockquote>
+<p>I chose to use faceted histograms, so that I could quickly get a sense of how many accounts fell into each category and the general distribution of the average balances for each group.</p>
+<p>We see that most accounts do not have credit cards or loans. Both groups with no loans are skewed right with their average balances, while the other groups are more symmetric.</p>
+<p>If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.</p>
+<p><img src="bank_files/figure-html/task1-1.png" width="100%" /></p>
+</div>
+<div id="task-2" class="section level2">
+<h2>Task 2</h2>
+<blockquote>
+<p>What is the distribution of all loans and what are their characteristics?</p>
+</blockquote>
+<div id="part-1-plotting-distribution-of-loan-amounts" class="section level5">
+<h5>Part 1: Plotting Distribution of Loan Amounts</h5>
+<p>I’m assuming “distribution of all loans” is referring to the distribution of loan amounts.</p>
+<p>We see that the the distribution of loan amounts is right skewed with 50% of the accounts having loans between $0 - $117,000 and the other 50% between $117,000 - $600,000.</p>
+<p><img src="bank_files/figure-html/task2_part1-1.png" width="100%" /></p>
+</div>
+<div id="part-2-plotting-loan-details-amount-payment-status-default-term" class="section level5">
+<h5>Part 2: Plotting Loan Details (Amount, Payment, Status, Default, Term)</h5>
+<p>This plot shows the inherent linear relationship between the loan amount, payment, and term, since <span class="math display">\[Payment = \frac{1}{Term} * Amount.\]</span></p>
+<p>Before I made this plot, I thought that defaulted accounts may be clustered somehow, like those with higher amounts or shorter terms. However, there doesn’t seem to be a pattern to the defaulted accounts.</p>
+<p><img src="bank_files/figure-html/task2_part2-1.png" width="100%" /></p>
+</div>
+</div>
+<div id="task-3" class="section level2">
+<h2>Task 3</h2>
+<blockquote>
+<p>Is there a relationship between a good or bad loan and the time between an account is opened an the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?</p>
+</blockquote>
+<p>Looking at these boxplots, we see that the two groups of accounts have almost exactly the same range, but the IQR and median is slightly lower for defaulted accounts, so borrowers who get a loan soon after opening an account may be more likely to default.</p>
+<p><img src="bank_files/figure-html/task3-1.png" width="100%" /></p>
+</div>
+<div id="task-4" class="section level2">
+<h2>Task 4</h2>
+<blockquote>
+<p>For the account with the highest number of transactions, make a time series line plot for the behavior of the account over time, including all debits and credits, the different methods, and with the different categories.</p>
+</blockquote>
+<p>I’m not exactly happy with this plot. I used a time series of the balance, so we could easily see the credits and debits as the line moves up and down. Then I added points that would show the category (using color) and method (using shape). Unfortunately, when the method was missing, those points were removed (first plot). But when I changed NA to ‘missing’ so that those points would show up (second plot), it seems like they covered up a lot of the statement charge points. I tried using jitter to make more points visible, but I don’t really like how it looks. Changing the transparency makes the points hard to discern, since there is a lot going on in this plot.</p>
+<p>Let me know if you have any ideas for making this better!</p>
+<p><img src="bank_files/figure-html/task4-1.png" width="100%" /><img src="bank_files/figure-html/task4-2.png" width="100%" /></p>
+</div>
+<div id="task-5" class="section level2">
+<h2>Task 5</h2>
+<blockquote>
+<p>Explore the validity of the data for the case whether or not an account has a credit card and whether or not they have associated credit card transactions. Is there anything worth noting?</p>
+</blockquote>
+<p>I used a heatmap to quickly get a sense of the four groups of accounts. There is definitely a data validity issue, since 80% of the accounts that had at least one credit card didn’t have any credit card transactions. In addition, about 18% of the accounts that had no credit cards somehow still had credit card transactions</p>
+<p><img src="bank_files/figure-html/task5-1.png" width="100%" /></p>
+</div>
 
 
 

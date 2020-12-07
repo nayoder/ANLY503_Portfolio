@@ -1,0 +1,239 @@
+---
+title: "Visualizing Election and Unemployment Data"
+---
+
+```{r general_setup, include=FALSE}
+### Setting chunk options and preparing to run Python
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      #out.width = '100%',
+                      engine.path = list(python = 'C:/Users/nicol/Anaconda3/python.exe'))
+library(reticulate)
+py_run_string("import os as os")
+py_run_string("os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/nicol/anaconda3/Library/plugins/platforms'")
+```
+
+
+```{r ggplot_setup}
+### Setting up custom theme and colors
+
+# Loading tidyverse
+library(tidyverse)
+
+# Loading Lato font
+library(showtext)
+font_add_google("Lato", "lato")
+showtext_auto()
+
+# Defining personal theme
+theme_ny <- function(){ 
+  font <- "lato"   #assign font family up front
+  
+  theme_classic(base_family = font) %+replace%    #using theme_classic as a base 
+                                                  # and then replacing elements I want to change
+    theme(
+      
+      #grid elements
+      panel.grid.major = element_line(),       #add major gridlines
+      axis.ticks = element_blank(),            #strip axis ticks
+      
+      #text elements
+      text = element_text(                     #all text
+        lineheight=0.5),               #line height (space between if \n is used)
+      
+      plot.title = element_text(               #title
+        size = 28,                     #set font size
+        face = 'bold',                 #bold typeface
+        margin = margin(t = 5, b=2),   #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.subtitle = element_text(            #subtitle
+        size = 28,                     #font size
+        margin = margin(b = 3),        #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.caption = element_text(             #caption
+        size = 14,                     #font size
+        hjust = 1),                    #right align
+      
+      axis.title = element_text(               #axis titles
+        size = 18),                    #font size
+      
+      axis.text.x = element_text(              #x-axis text
+        size = 16,                     #font size
+        margin = margin(t=1, b=8)),    #margin
+      
+      axis.text.y = element_text(              #y-axis text
+        size = 16,                     #font size
+        margin = margin(r=1, l=8),     #margin
+        hjust = 1),                    #right align
+      
+      #legend text elements
+      legend.title = element_text(             #legend title
+        size = 18),                    #font size
+      
+      legend.text = element_text(              #legend text
+        size = 16,                     #font size
+        hjust = 0),                    #left align
+      
+      #facet label elements
+      strip.text = element_text(               #facet label text
+        size = 18),                    #font size
+      
+      strip.background = element_rect(         #facet label background
+        color='white')                 #no outline
+      
+    )
+}
+
+
+theme_set(theme_ny())
+
+# Colors
+library(colorspace)
+qual <- qualitative_hcl(n=7, palette='Dark 3') #qualitative
+seq <- sequential_hcl(n=7, palette='PuBuGn') #sequential
+div <- diverging_hcl(n=7, palette='Tropic') #diverging
+```
+
+
+```{python plt_setup}
+### Setting custom theme (colors will be used from R)
+# Loading necessary packages
+import pandas as pd
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+
+# Starting with seaborn-white theme
+plt.style.use('seaborn-white')
+
+# Setting font size, axes, and gridlines (for some reason ggplot and matplotlib do not actually align??)
+params = {'figure.titlesize': 20,       # main iitle (plt.suptitle)
+          'axes.titlesize': 20,         # subtitle (plt.title)
+          'axes.labelsize': 14,         # x- and y-axes titles
+          'xtick.labelsize': 12,        # x-axis text 
+          'ytick.labelsize': 12,        # y-axis text
+          'legend.title_fontsize': 14,  # legend title
+          'legend.fontsize': 12,        # legend text
+          'xtick.color': '#4d4d4d',     # x-axis text (grey30)
+          'ytick.color': '#4d4d4d',     # y-axis text (grey30)
+          'axes.spines.right': False,   # remove right axis spine
+          'axes.spines.top': False,     # remove top axis spine
+          'axes.grid': True,            # add gridlines
+          'grid.color': '#ebebeb'}      # gridlines color (grey92)
+pylab.rcParams.update(params)
+
+
+# Changing font to Lato
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = 'Lato'
+```
+
+
+## Task 1
+>Explore all accounts. Create visualizations that combines these account characteristics:
+>
+>- Whether an account has a credit card or not
+>- Whether an account has a loan or not
+>- The average balance for the account
+
+I chose to use faceted histograms, so that I could quickly get a sense of how many accounts fell into each category and the general distribution of the average balances for each group.
+
+We see that most accounts do not have credit cards or loans. Both groups with no loans are skewed right with their average balances, while the other groups are more symmetric. 
+
+If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.
+
+```{python task1}
+#### Reading in data
+accounts = pd.read_csv("data/accounts_analytical.csv")
+transactions = pd.read_csv("data/transactions.csv")
+
+#### Setting up the data frame
+# Getting average balance for each account from the transactions data
+avg_balDF = (transactions
+             .groupby('account_id', as_index=False)
+             .agg({'balance': 'mean'})
+             .rename(columns={'balance':'avg_balance'}))
+
+# Creating columns for whether or not the account uses credit cards or loans,
+# then adding the average balance
+cc_loansDF = accounts.assign(
+    cc_user = np.where(pd.isna(accounts['credit_cards']), 'No Credit Cards', 'Has Credit Card(s)'),
+    loan_user = np.where(pd.isna(accounts['loan_date']), 'No Loans', 'Has Loan(s)'))
+
+cc_loansDF = cc_loansDF[['account_id', 'cc_user', 'loan_user']]
+
+cc_loans_balDF = cc_loansDF.merge(avg_balDF)
+
+
+#### Plotting faceted histograms
+p = sns.FacetGrid(cc_loans_balDF, col="cc_user",
+                  row="loan_user", margin_titles=True)
+p = p.map_dataframe(sns.histplot, x="avg_balance", bins=20, edgecolor=r.seq[2], color=r.seq[2], alpha=1)
+p = p.set_axis_labels("Average Balance", "Frequency")
+
+# Fixing the titles to be like ggplot
+p = p.set_titles(row_template = '{row_name}', col_template = '{col_name}')
+
+plt.subplots_adjust(top=0.8, left=0.1, bottom=0.1) # The axes titles were getting cut off without this
+plt.suptitle('Account Average Balance by\nLoan and Credit Card Use', 
+             fontweight='bold', y=.95)
+plt.show()
+```
+
+
+
+## Task 2
+>What is the distribution of all loans and what are their characteristics?
+
+```{r task2_setup}
+#### Reading in data
+accounts <- read_csv("data/accounts_analytical.csv")
+
+#### Setting up dataframe
+# Selecting loan-related columns and removing accounts that did not have loans
+loanDF <- accounts %>% 
+  select(account_id, starts_with('loan')) %>% 
+  filter(!is.na(loan_date))
+```
+
+
+##### Part 1: Plotting Distribution of Loan Amounts
+I'm assuming "distribution of all loans" is referring to the distribution of loan amounts.
+
+We see that the the distribution of loan amounts is right skewed with 50% of the accounts having loans between \$0 - \$117,000 and the other 50% between \$117,000 - \$600,000.
+
+```{r task2_part1, out.width='100%'}
+g <- loanDF %>% 
+  ggplot(aes(x=loan_amount)) +
+  geom_histogram(breaks=seq(0,600000,20000), fill=seq[3]) + # new bar every $20,000
+  geom_vline(aes(xintercept = median(loan_amount)), linetype='dashed', col='grey30', size=0.5) +
+  geom_text(mapping = aes(x = median(loan_amount), y = 0,
+                          label = 'Median \U2248 117,000'),
+            size = 6,
+            hjust = -0.05, vjust = -0.6,
+            color='grey30') +
+  scale_x_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Loan Amount ($)',
+       y='Frequency',
+       title=paste0('Distribution of Loan Amounts (n = ', nrow(loanDF), ')'))
+
+plot(g)
+```
+
+Test 2
+
+```{r task2_part12, fig.width=4, fig.height=3, out.width='384px', out.height='288px'}
+plot(g)
+```
