@@ -4,4 +4,5 @@ title: "About"
 
 Welcome to Nicole Yoder's portfolio for the Data Visualization course at Georgetown University's Data Science and Analytics MS program.
 
+<br>
 Use the navigation bar to see some homework assignments, as well as the final project. You can find all the code used to make this website and the visualizations at [this Github repository.](https://github.com/nayoder/ANLY503_Portfolio)

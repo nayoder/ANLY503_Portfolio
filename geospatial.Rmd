@@ -7,7 +7,7 @@ title: "Visualizing Election and Unemployment Data"
 knitr::opts_chunk$set(echo = FALSE,
                       warning = FALSE,
                       message = FALSE,
-                      out.width = '100%',
+                      out.width = '120%',
                       engine.path = list(python = 'C:/Users/nicol/Anaconda3/python.exe'))
 library(reticulate)
 py_run_string("import os as os")
@@ -92,6 +92,16 @@ theme_ny <- function(){
     )
 }
 
+# Useful for geographical/network plots
+blank_theme_ny <- theme_ny() +
+  theme(
+    #legend.position = "none",
+    axis.line = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank()
+  ) 
 
 theme_set(theme_ny())
 
@@ -103,7 +113,7 @@ div <- diverging_hcl(n=7, palette='Tropic') #diverging
 ```
 
 
-```{python plt_setup}
+```{python plt_setup, eval=FALSE}
 #---------------------------------------- NOTE -----------------------------------------#
 # If you want to see my python version, change eval to TRUE for this and the last chunk.#
 #---------------------------------------------------------------------------------------#
@@ -145,7 +155,7 @@ matplotlib.rcParams['font.sans-serif'] = 'Lato'
 ```
 
 
-For this assignment, we received datasets with US election results and unemployment rates for each county and were tasked with creating panels of choropleths for Texas, California, and Pennsylvania in the years 2008, 2012, and 2012.
+For this assignment, we received datasets with US election results and unemployment rates for each county and were tasked with creating panels of choropleths for Texas, California, and Pennsylvania in the years 2008, 2012, and 2016.
 
 
 
@@ -211,12 +221,7 @@ DF <- inner_join(DF, shpDF, by='FIPS')
 #### Preparing the Theme and Scales
 # Setting the theme so that everything is blank
 # (no axes, background, etc.)
-theme_set(theme_ny() +
-          theme(panel.border=element_blank(),
-                panel.grid.major=element_blank(),
-                axis.line=element_blank(),
-                axis.text.x=element_blank(),
-                axis.text.y=element_blank()))
+theme_set(theme_ny() + blank_theme_ny)
 
 # Setting the gradient scale for election data
 vote_scale = scale_fill_gradient2(low = '#32346c',
@@ -322,7 +327,7 @@ patchwork +
   plot_annotation(
     title = 'The Proportion of Votes Won by Republicans\nand Unemployment Rates in 2008, 2012, and 2016',
     caption = 'Source: MIT Election Data and Science Lab',
-    theme = theme(plot.title = element_text(hjust = 0.5))
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 28))
     ) +
   plot_layout(heights=c(2.2, 2.2, 2, 2, 1.2, 1.2))
 ```
@@ -330,7 +335,7 @@ patchwork +
 
 
 
-```{python python_version}
+```{python python_version, eval=FALSE}
 ### Python
 # This was my python implementation for the assignment. I'm not running this portion for the portfolio, since I completed all the choropleths in R already.
 

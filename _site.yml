@@ -5,6 +5,7 @@ output:
     css: styles.css
 navbar:
   title: "Data Viz Portfolio"
+  type: inverse
   left:
     - text: "Home"
       href: index.html
@@ -14,3 +15,6 @@ navbar:
       href: geospatial.html
     - text: "Lego Project"
       href: lego.html
+  right:
+    - icon: fa-github
+      href: https://github.com/nayoder/ANLY503_Portfolio

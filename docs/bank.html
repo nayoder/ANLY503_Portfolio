@@ -25,6 +25,8 @@
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/anchor-sections-1.0/anchor-sections.css" rel="stylesheet" />
 <script src="site_libs/anchor-sections-1.0/anchor-sections.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -272,7 +274,7 @@ $(document).ready(function () {
 
 
 
-<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+<div class="navbar navbar-inverse  navbar-fixed-top" role="navigation">
   <div class="container">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
@@ -298,7 +300,12 @@ $(document).ready(function () {
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
-        
+        <li>
+  <a href="https://github.com/nayoder/ANLY503_Portfolio">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
       </ul>
     </div><!--/.nav-collapse -->
   </div><!--/.container -->
@@ -493,7 +500,8 @@ $(document).ready(function () {
 <p>I chose to use faceted histograms, so that I could quickly get a sense of how many accounts fell into each category and the general distribution of the average balances for each group.</p>
 <p>We see that most accounts do not have credit cards or loans. Both groups with no loans are skewed right with their average balances, while the other groups are more symmetric.</p>
 <p>If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.</p>
-<p><img src="bank_files/figure-html/task1-1.png" width="100%" /></p>
+<p>Note: This visualization uses Python, while the rest use R.</p>
+<p><img src="bank_files/figure-html/task1-1.png" width="70%" /></p>
 </div>
 <div id="task-2" class="section level2">
 <h2>Task 2</h2>
@@ -504,22 +512,22 @@ $(document).ready(function () {
 <h5>Part 1: Plotting Distribution of Loan Amounts</h5>
 <p>I’m assuming “distribution of all loans” is referring to the distribution of loan amounts.</p>
 <p>We see that the the distribution of loan amounts is right skewed with 50% of the accounts having loans between $0 - $117,000 and the other 50% between $117,000 - $600,000.</p>
-<p><img src="bank_files/figure-html/task2_part1-1.png" width="100%" /></p>
+<p><img src="bank_files/figure-html/task2_part1-1.png" width="90%" /></p>
 </div>
 <div id="part-2-plotting-loan-details-amount-payment-status-default-term" class="section level5">
 <h5>Part 2: Plotting Loan Details (Amount, Payment, Status, Default, Term)</h5>
 <p>This plot shows the inherent linear relationship between the loan amount, payment, and term, since <span class="math display">\[Payment = \frac{1}{Term} * Amount.\]</span></p>
 <p>Before I made this plot, I thought that defaulted accounts may be clustered somehow, like those with higher amounts or shorter terms. However, there doesn’t seem to be a pattern to the defaulted accounts.</p>
-<p><img src="bank_files/figure-html/task2_part2-1.png" width="100%" /></p>
+<p><img src="bank_files/figure-html/task2_part2-1.png" width="90%" /></p>
 </div>
 </div>
 <div id="task-3" class="section level2">
 <h2>Task 3</h2>
 <blockquote>
-<p>Is there a relationship between a good or bad loan and the time between an account is opened an the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?</p>
+<p>Is there a relationship between a good or bad loan and the time between when an account is opened and when the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?</p>
 </blockquote>
 <p>Looking at these boxplots, we see that the two groups of accounts have almost exactly the same range, but the IQR and median is slightly lower for defaulted accounts, so borrowers who get a loan soon after opening an account may be more likely to default.</p>
-<p><img src="bank_files/figure-html/task3-1.png" width="100%" /></p>
+<p><img src="bank_files/figure-html/task3-1.png" width="90%" /></p>
 </div>
 <div id="task-4" class="section level2">
 <h2>Task 4</h2>
@@ -528,15 +536,15 @@ $(document).ready(function () {
 </blockquote>
 <p>I’m not exactly happy with this plot. I used a time series of the balance, so we could easily see the credits and debits as the line moves up and down. Then I added points that would show the category (using color) and method (using shape). Unfortunately, when the method was missing, those points were removed (first plot). But when I changed NA to ‘missing’ so that those points would show up (second plot), it seems like they covered up a lot of the statement charge points. I tried using jitter to make more points visible, but I don’t really like how it looks. Changing the transparency makes the points hard to discern, since there is a lot going on in this plot.</p>
 <p>Let me know if you have any ideas for making this better!</p>
-<p><img src="bank_files/figure-html/task4-1.png" width="100%" /><img src="bank_files/figure-html/task4-2.png" width="100%" /></p>
+<p><img src="bank_files/figure-html/task4-1.png" width="90%" /><img src="bank_files/figure-html/task4-2.png" width="90%" /></p>
 </div>
 <div id="task-5" class="section level2">
 <h2>Task 5</h2>
 <blockquote>
 <p>Explore the validity of the data for the case whether or not an account has a credit card and whether or not they have associated credit card transactions. Is there anything worth noting?</p>
 </blockquote>
-<p>I used a heatmap to quickly get a sense of the four groups of accounts. There is definitely a data validity issue, since 80% of the accounts that had at least one credit card didn’t have any credit card transactions. In addition, about 18% of the accounts that had no credit cards somehow still had credit card transactions</p>
-<p><img src="bank_files/figure-html/task5-1.png" width="100%" /></p>
+<p>I used a heatmap to quickly get a sense of the four groups of accounts. There is definitely a data validity issue, since 80% of the accounts that had at least one credit card didn’t have any credit card transactions. In addition, about 18% of the accounts that had no credit cards somehow still had credit card transactions.</p>
+<p><img src="bank_files/figure-html/task5-1.png" width="90%" /></p>
 </div>
 
 

@@ -7,7 +7,7 @@ title: "Exploring Bank Data"
 knitr::opts_chunk$set(echo = FALSE,
                       warning = FALSE,
                       message = FALSE,
-                      out.width = '100%',
+                      out.width = '90%',
                       engine.path = list(python = 'C:/Users/nicol/Anaconda3/python.exe'))
 library(reticulate)
 py_run_string("import os as os")
@@ -92,6 +92,16 @@ theme_ny <- function(){
     )
 }
 
+# Useful for geographical/network plots
+blank_theme_ny <- theme_ny() +
+  theme(
+    legend.position = "none",
+    axis.line = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank()
+  ) 
 
 theme_set(theme_ny())
 
@@ -203,7 +213,9 @@ We see that most accounts do not have credit cards or loans. Both groups with no
 
 If I could make additional graphs, I would allow the y-axis to be free, since it is hard to see the details of the group that has loans and credit cards. However, with only one graph allowed, I think it is more important to see how the number of accounts varies for each group.
 
-```{python task1}
+Note: This visualization uses Python, while the rest use R.
+
+```{python task1, out.width='70%'}
 #### Reading in data
 accounts = pd.read_csv("data/accounts_analytical.csv")
 transactions = pd.read_csv("data/transactions.csv")
@@ -311,7 +323,7 @@ loanDF %>%
 
 
 ## Task 3
->Is there a relationship between a good or bad loan and the time between an account is opened an the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?
+>Is there a relationship between a good or bad loan and the time between when an account is opened and when the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?
 
 Looking at these boxplots, we see that the two groups of accounts have almost exactly the same range, but the IQR and median is slightly lower for defaulted accounts, so borrowers who get a loan soon after opening an account may be more likely to default.
 
@@ -329,7 +341,7 @@ loanDF <- accounts %>%
 loanDF %>% 
   ggplot(aes(x=acct_loan_diff, y=loan_default, color=loan_default))+
   geom_boxplot(width=0.4) +
-  scale_color_manual(values=c(div[7], div[1])) +
+  scale_color_manual(values=c(div[1], div[7])) +
   labs(x='Loan Start Date - Account Start Date (days)',
        y='Loan Defaulted?',
        title='Loan Default Status vs. Loan and Account Start Date Difference') +

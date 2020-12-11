@@ -1,19 +1,784 @@
 ---
 title: "Lego Project"
+author: "Nicole Yoder"
+output:
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    css: lego_styles.css
+    source_code: https://github.com/anly503/anly503-fall2020-project-nayoder
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r general_setup, include=FALSE}
+library(flexdashboard)
+### Setting chunk options
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      out.width = '100%')
 ```
 
-# Header 1
 
-## Header 2
+```{r ggplot_setup}
+### Setting up custom theme and colors
 
-### Header 3
+# Loading tidyverse
+library(tidyverse)
 
-#### Header 4
+# Loading Lato font
+library(showtext)
+font_add_google("Lato", "lato")
+showtext_auto()
 
-##### Header 5
+# Defining personal theme
+theme_ny <- function(){ 
+  font <- "lato"   #assign font family up front
+  
+  theme_classic(base_family = font) %+replace%    #using theme_classic as a base 
+    # and then replacing elements I want to change
+    theme(
+      
+      #grid elements
+      panel.grid.major = element_line(),       #add major gridlines
+      axis.ticks = element_blank(),            #strip axis ticks
+      
+      #text elements
+      text = element_text(                     #all text
+        lineheight=0.5),               #line height (space between if \n is used)
+      
+      plot.title = element_text(               #title
+        size = 28,                     #set font size
+        face = 'bold',                 #bold typeface
+        margin = margin(t = 5, b=2),   #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.subtitle = element_text(            #subtitle
+        size = 28,                     #font size
+        margin = margin(b = 3),        #margin
+        hjust = 0,                     #left align
+        vjust = 1),                    #raise slightly
+      
+      plot.caption = element_text(             #caption
+        size = 14,                     #font size
+        hjust = 1),                    #right align
+      
+      axis.title = element_text(               #axis titles
+        size = 18),                    #font size
+      
+      axis.text.x = element_text(              #x-axis text
+        size = 16,                     #font size
+        margin = margin(t=1, b=8)),    #margin
+      
+      axis.text.y = element_text(              #y-axis text
+        size = 16,                     #font size
+        margin = margin(r=1, l=8),     #margin
+        hjust = 1),                    #right align
+      
+      #legend text elements
+      legend.title = element_text(             #legend title
+        size = 18),                    #font size
+      
+      legend.text = element_text(              #legend text
+        size = 16,                     #font size
+        hjust = 0),                    #left align
+      
+      #facet label elements
+      strip.text = element_text(               #facet label text
+        size = 18),                    #font size
+      
+      strip.background = element_rect(         #facet label background
+        color='white')                 #no outline
+      
+    )
+}
 
-###### Header 6
+
+# Useful for geographical/network plots
+blank_theme_ny <- theme_ny() +
+  theme(
+    legend.position = "none",
+    axis.line = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank()
+  ) 
+
+
+theme_set(theme_ny())
+
+# Colors
+library(colorspace)
+qual <- qualitative_hcl(n=7, palette='Dark 3') #qualitative
+seq <- sequential_hcl(n=7, palette='PuBuGn') #sequential
+div <- diverging_hcl(n=7, palette='Tropic') #diverging
+legored <- '#d01012'
+darkred <- '#9d0000'
+legoyellow <- '#ffcf00'
+darkyellow <- '#cc9c00'
+legoblue <- '#006db7'
+legogreen <- '#64a144'
+```
+
+
+```{r packages}
+### Loading other necessary packages
+library(scales)
+library(usmap)
+library(ggvoronoi)
+library(DT)
+library(tidygraph)
+library(ggraph)
+library(ggtext)
+library(tidytext)
+```
+
+
+```{r loading_data}
+### Loading data and renaming variables that show up in multiple tables (like id)
+sets <- read_csv('project_data/sets.csv') %>% 
+  rename(set_name = name,
+         set_num_parts = num_parts) %>% 
+  filter(year != 2021,      # removing 2021 sets because their num_parts isn't necessarily known yet
+         set_num_parts != 0)  # sets with 0 parts are either collections of other sets or other merchandise (like pencil bags)
+
+themes <- read_csv('project_data/themes.csv') %>% 
+  rename(theme_id = id,
+         theme_name = name)
+
+minifigs <- read_csv('project_data/minifigs.csv') %>% 
+  rename(minifig_id = fig_num,
+         minifig_name = name,
+         minifig_num_parts = num_parts)
+
+colors <- read_csv('project_data/colors.csv') %>% 
+  rename(color_id = id,
+         color_name = name,
+         hex = rgb) %>% 
+  mutate(hex = paste0('#', hex)) # adding '#' in front of hex values so colors will work in ggplot
+
+# Lego EID, each unique block and color combo
+elements <- read_csv('project_data/elements.csv',
+                     col_types = cols('c', 'c', 'd'))
+
+# scraped store locations
+store_locations <- read_csv('project_data/store_locations.csv')
+```
+
+
+About
+=====================================
+
+Column {data-width=495}
+-------------------------------------
+    
+### The Data
+This project mostly used publicly available data from [Rebrickable](https://rebrickable.com/downloads/). Rebrickable is a website that helps users keep track of their Lego collections and allows them to create designs for "My Own Creations" (MOCs), which are all the fan-based LEGO creations other than the officially released sets, as well as search for others' MOCs and see if they have the parts to create them. It has an extensive database with records of the official Lego sets, which is the data used for this project (no MOC data). This data was downloaded December 8th, 2020. In addition, I scraped the Lego website store locator for the addresses used in the Geographical portion (see `scraping_store_locations.R` for that code). The following tables describe the datasets used and their features.
+
+<br>
+The `sets.csv` dataset contains basic information for official Lego sets.
+
+Notes: The data had 2021 sets, but I removed those since Rebrickable was missing the `set_num_parts` for many of those sets. I also removed any set that had `set_num_parts = 0`, since those were either bundles of other sets or other Lego merchandise like pencil bags. 
+
+| Field Name | Description |
+|:--|:----|
+| `set_num` | Unique set identifier |
+| `set_name` | Set name | 
+| `year` | Release year of set |
+| `theme_id` | Unique theme identifier |
+| `set_num_parts` | The number of parts in the set | 
+
+<br>
+The `themes.csv` dataset contains the Lego themes their relationships.
+
+| Field Name | Description |
+|:--|:----|
+| `theme_id` | Unique theme identifier |
+| `theme_name` | Theme name | 
+| `parent_id` | ID for current theme's parent (may be `NA`) | 
+
+<br>
+The `minifigs.csv` dataset contains basic information for Lego minifigures (people).
+
+| Field Name | Description |
+|:--|:----|
+| `minifig_id` | Unique minifigure identifier |
+| `minifig_name` | Minifigure name | 
+| `minifig_num_parts` | The number of parts in the minifigure | 
+
+<br>
+The `colors.csv` dataset contains the colors used for Lego parts.
+
+Note: [Unknown] and [No Color/Any Color] are two possible colors.
+
+| Field Name | Description |
+|:--|:----|
+| `color_id` | Unique color identifier |
+| `color_name` | Color name | 
+| `hex` | The hexadecimal representation of the color (used in HTML, CSS, etc.) | 
+| `is_trans` | True/False for whether a color is translucent |
+
+<br>
+The `elements.csv` dataset contains every Lego element (unique combination of a part and color).
+
+| Field Name | Description |
+|:--|:----|
+| `element_id` | Unique element identifier |
+| `part_num` | Unique part identifier | 
+| `color_id` | Unique color identifier |
+
+<br>
+The `store_locations.csv` dataset contains location data for Lego stores scraped from the Lego website.
+
+Note: The latitude and longitude were geocoded using the `tidygeocoder` package. I checked a few of the results, and while the lat/long coordinates may not have been at the exact store/mall, it was always close.
+
+| Field Name | Description |
+|:--|:----|
+| `titles` | Store title |
+| `addresses` | Address as provided on Lego website | 
+| `clean_addresses` | Addresses with number (e.g. #125) removed, since the hashtags caused issues in geocoding |
+| `lat` | Latitude |
+| `long` | Longitude |
+
+
+Column {data-width=10}
+-------------------------------------  
+  
+   
+Column {data-width=495}
+-------------------------------------
+
+### Objectives
+With the visualizations in this project, I aim to explore Lego's sets, minifigures, themes, and stores by answering the following questions:
+
+<br>
+How many parts are in Lego sets and minifigures, and what colors does Lego use?
+
+<br>
+Where are the Lego stores located in the US, and which one is the closest to my area?
+
+<br>
+How are Lego themes related?
+
+<br>
+How has the complexity of sets changed over time?
+
+<br>
+How are Lego sets and figures described?
+
+
+### Software and Packages Used
+
+| Software/Package | Version |
+|:--|:--|
+| Platform | x86_64-w64-mingw32/x64 (64-bit) |
+| Running | Windows 10 x64 (build 18363) |
+| `R` | 4.0.2 |
+| `RStudio` | 1.2.5042 | 
+| `colorspace` |  2.0-0 |
+| `dplyr` |  1.0.2 |
+| `DT` | 0.16 |
+| `flexdashboard` | 0.5.2 |
+| `forcats` |  0.5.0 |
+| `ggplot2` | 3.3.2 |
+| `ggraph` | 2.0.4 |
+| `ggvoronoi` | 0.8.3 |
+| `igraph` | 1.2.6 |
+| `purrr` | 0.3.4 |
+| `readr` | 1.4.0 |
+| `RSelenium` | 1.7.7 |
+| `rvest` | 0.3.6 |
+| `scales` | 1.1.1 |
+| `showtext` | 0.9-1 |
+| `showtextdb` | 3.0 |
+| `stringr` | 1.4.0 |
+| `sysfonts` | 0.8.2 |
+| `tibble` | 3.0.4 |
+| `tidygeocoder` | 1.0.1 |
+| `tidygraph` | 1.2.0 |
+| `tidyr` | 1.1.2 |
+| `tidytext` | 0.2.6 |
+| `tidyverse` | 1.3.0 |
+| `usmap` | 0.5.1 |
+| `wordcloud2` | 0.2.1 |
+
+
+
+
+
+Exploratory {data-orientation=rows}
+=====================================
+
+Row {data-height=125}
+-------------------------------------
+### Total Number of Sets
+
+```{r}
+valueBox(formatC(nrow(sets), format='d', big.mark=','), icon = "fa-building", color = legoblue)
+```
+
+### Total Number of Minifigures
+
+```{r}
+valueBox(formatC(nrow(minifigs), format='d', big.mark=','), icon = "fa-male", color = legoblue)
+```
+
+### Total Number of Themes
+
+```{r}
+valueBox(formatC(nrow(themes), format='d', big.mark=','), icon = "fa-space-shuttle", color = legoblue)
+```
+
+### Total Number of Elements<br>(Unique Combos of Part and Color)
+
+```{r}
+valueBox(formatC(nrow(elements), format='d', big.mark=','), icon = "fa-cubes", color = legoblue)
+```
+
+
+
+Row {data-height=460}
+-------------------------------------
+
+### How many parts are in Lego sets and minifigures? {data-width=150}
+The number of parts in Lego sets range from 1 (single pieces like [Playhouse](https://rebrickable.com/sets/041-2/playhouse/#parts) or [Green Baseplate](https://rebrickable.com/sets/10700-1/green-baseplate/#parts)) to 9,987 ([The Ultimate Battle of Chima](https://rebrickable.com/sets/BIGBOX-1/the-ultimate-battle-for-chima/#parts)). About 70% of the sets have between 10 to 500 parts.
+
+<br>
+The number of parts for minifigures has a much smaller range from 1 (like [Chuck](https://rebrickable.com/minifigs/fig-002313/chuck/#parts)) to 43 (the [Iron Golem](https://rebrickable.com/minifigs/fig-010202/iron-golem/#parts)). About 58% of the minifigures have four parts, which is the typical legs, torso, head, and hair/hat format like this [Emmet from The Lego Movie](https://rebrickable.com/minifigs/fig-001449/emmet-with-wide-smile-showing-teeth-and-tongue/#parts).
+
+### Chart {.no-title data-width=425}
+```{r distr_sets}
+sets %>% 
+  ggplot(aes(x=set_num_parts)) +
+  stat_density(color = legored, fill = legored, alpha = 0.7) +
+  scale_x_continuous(breaks=c(1,5,10,50,100,500,1000,5000,10000),
+                     trans="log",
+                     labels = label_comma(accuracy=1),
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Number of Parts in Set (Log Scale)',
+       y='Density',
+       title='Distribution of Set Part Amounts')
+```
+
+### Chart {.no-title data-width=425}
+```{r distr_minifigs}
+minifigs %>% 
+  ggplot(aes(x=minifig_num_parts)) +
+  geom_histogram(breaks = seq(0, max(minifigs$minifig_num_parts), 1),
+                 closed = 'left',
+                 color = legoyellow, fill = legoyellow, alpha = 0.7) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Number of Parts in Minifigure',
+       y='Frequency',
+       title='Distribution of Minifigure Part Amounts')
+
+```
+
+
+
+Row {data-height=450}
+-------------------------------------
+### What colors does Lego use? {data-width=150}
+The classic Lego colors of red and yellow are the top two colors after black and white, which I suppose isn't too surprising. Most of the colors in the top 20 are fairly neutral/broad and none of them are translucent.
+
+<br>
+In contrast, the least common colors are fairly vibrant/specific and many of them are translucent. Ten of the top 20 were used for only one Lego element. For example, 'Trans-Neon Yellow' was only used for this [Power Shield](https://rebrickable.com/parts/22385pr0040/tile-special-2-x-3-pentagonal-with-nexo-power-shield-print-shining-axe/).
+
+### Chart {.no-title data-width=425}
+```{r top_colors}
+trans_alpha <- c('FALSE' = 1, 'TRUE' = 0.5) # make alpha related to translucency
+
+# Most-used
+topcolors <- elements %>%
+  count(color_id) %>% 
+  left_join(colors) %>% 
+  arrange(desc(n)) %>% 
+  slice_head(n = 20)
+
+topcolors %>% 
+  ggplot(aes(x = reorder(color_name, -n),
+             y = n,
+             fill = I(hex),
+             alpha = is_trans)) +
+  geom_col(color = 'grey') +
+  coord_flip() +
+  scale_alpha_manual(values = trans_alpha) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = element_blank(),
+       y = 'Number of Lego Elements',
+       title = 'Most Common Colors',
+       subtitle = 'Note: Trans = Translucent') +
+  theme(legend.position = 'none',
+        plot.subtitle = element_text(size = 14))
+```
+
+### Chart {.no-title data-width=425}
+```{r bottom_colors}
+# Least-used
+bottomcolors <- elements %>%
+  count(color_id) %>% 
+  left_join(colors) %>% 
+  arrange(n, color_name) %>% 
+  slice_head(n = 20)
+
+bottomcolors %>% 
+  ggplot(aes(x = reorder(color_name, -n),
+             y = n,
+             fill = I(hex),
+             alpha = is_trans)) +
+  geom_col(color = 'grey') +
+  coord_flip() +
+  scale_alpha_manual(values = trans_alpha) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = element_blank(),
+       y = 'Number of Lego Elements',
+       title = 'Least Common Colors',
+       subtitle = 'Note: Trans = Translucent') +
+  theme(legend.position = 'none',
+        plot.subtitle = element_text(size = 14))
+```
+
+
+
+
+
+Geographical {data-orientation=rows}
+=====================================
+Row {data-height=80}
+-------------------------------------
+### Where are the Lego stores located in the US, and which one is the closest to my area?
+There are 103 Lego stores in the continential US and close to the border in Canada. These [Voronoi cells](https://en.wikipedia.org/wiki/Voronoi_diagram) each contain one store and all the points for whom that store is the closest. As an Iowa native, I thought it was interesting that Iowa was split between five of the Voronoi cells. Of course, this uses the "as the crow flies" distance, rather than the highway routes, so using Google Maps to find the closest store is still your best bet.
+
+Row {data-height=600}
+-------------------------------------
+### Chart {.no-title}
+```{r stores}
+# general lat/long coordinates for US, but includes some spots in Canada
+us_locations <- store_locations %>% 
+  filter(between(lat, 26, 50), between(long, -125, -65))  
+
+us_transformed <- us_locations %>% 
+  select(long, lat) %>% 
+  usmap_transform()
+
+plot_usmap("states", exclude=c('Hawaii', 'Alaska')) +
+  geom_point(data = us_transformed, aes(x = long.1, y = lat.1),
+             color = legored, alpha = 0.4) +
+  geom_path(data = us_transformed, aes(x=long.1, y=lat.1), stat="voronoi",alpha=.1,size=.25) +
+  blank_theme_ny +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = 'Voronoi Diagram of Lego Stores "in" the Continental U.S.')
+```
+
+
+
+
+Graph/Network
+=====================================
+```{r graph_setup}
+### Creating graph of themes
+edges <- themes %>% 
+  select(from = theme_id, to = parent_id) %>%
+  filter(!is.na(to))
+
+nodes <- themes %>% 
+  select(id = theme_id, theme = theme_name)
+
+graph_themes <- igraph::graph_from_data_frame(edges, vertices = nodes) %>% as_tbl_graph()
+
+### Determining top-level parents and standalone themes
+#find nodes in 'edges$to' that aren't in 'edges$from', those are top-level parent themes
+parent_themes <- unique(edges$to[!(edges$to %in% edges$from)])
+
+#get dataframe of names to use as a table
+parent_themes <- themes %>% 
+  filter(theme_id %in% parent_themes)
+  
+#find nodes in 'nodes$id' that aren't in 'edges$from' or 'edges$to', those are standalone themes
+alone_themes <- nodes$id[!(nodes$id %in% unique(append(edges$to, edges$from)))]
+
+#get dataframe of names to use as a table
+alone_themes <- themes %>% 
+  filter(theme_id %in% alone_themes)
+
+```
+
+
+Column {data-width=700}
+-------------------------------------
+
+### How are Lego themes related? {data-height=100}
+There are 599 Lego themes. Many of them have hierarchical (parent-child) relationships, but 83 of them are standalone themes. Since there are too many themes to plot in one, readable network graph, I'm going to highlight the Technic and Duplo themes. You can use the tables on the right to explore the themes further.
+
+
+### Chart {.no-title data-height=450}
+```{r graph_technic}
+# Subset Technic theme
+graph_themes %>%
+  convert(to_local_neighborhood, node = which(.N()$theme == "Technic"), order = 3, mode = "all") %>%
+  ggraph(layout = "sugiyama") +
+  geom_edge_diagonal(color = "gray", alpha = 0.4) +
+  geom_node_text(aes(label = theme), angle = 30, size = 3, family = 'lato') +
+  blank_theme_ny
+```
+
+
+### Chart {.no-title data-height=450}
+```{r graph_duplo}
+# Subset Duplo theme
+graph_themes %>%
+  convert(to_local_neighborhood, node = which(.N()$theme == "Duplo"), order = 3, mode = "all") %>% 
+  ggraph(layout = "sugiyama") +
+  geom_edge_diagonal(color = "gray", alpha = 0.4) +
+  geom_node_text(aes(label = theme), angle = 30, size = 3, family = 'lato') +
+  blank_theme_ny
+```
+
+
+Column {data-width=300}
+-------------------------------------
+
+### All Themes
+```{r all_themes}
+datatable(themes, options = list(
+  pageLength = 10
+))
+```
+
+### Standalone Themes
+```{r alone_themes}
+datatable(alone_themes, options = list(
+  pageLength = 10
+))
+```
+
+### Top-Level Parent Themes
+```{r parent_themes}
+datatable(parent_themes, options = list(
+  pageLength = 10
+))
+```
+
+
+
+
+
+Time Series
+=====================================
+
+Column {data-width=275 data-height=600}
+-------------------------------------
+### How has the complexity of sets changed over time? {data-height=600}
+The first graph shows how many sets Lego released each year. The general trend is increasing, though it seems that it may be leveling off around 660 sets in the last five years.
+
+<br>
+But are these sets simple or complex? For instance, Lego released many more sets in the 2010's than they did in the 1980's, but the sets could have fewer parts and therefore be simpler.
+
+<br>
+The second graph answers that question by graphing the average number of parts per set over time. It turns out that sets released in the 2010's have more parts than those released in the 1980's on average, so they are more complex according to this measure (if I had data about the number of steps in the instructions, that would be even better).
+
+<br>
+What happened in 1960? Well, there were only two sets released that year. The [Number Bricks set](https://rebrickable.com/sets/237-1/number-bricks/#parts) only has 50 parts, but the [Kindergarten LEGO set](https://rebrickable.com/sets/700K-1/kindergarten-lego-set/#parts) has 476 parts. The latter set has a lot of basic blocks in a variety of colors, presumably marketed as a good starter set for classrooms.
+
+
+Column {.tabset data-width=725}
+-------------------------------------
+### Number of Sets {data-height=600}
+```{r sets_time}
+# Creating aggregated dataframe
+sets_time <- sets %>% 
+  select(year, set_num, theme_id, set_num_parts) %>% 
+  group_by(year) %>% 
+  summarize(set_total = n_distinct(set_num),
+            set_num_parts_total = sum(set_num_parts)) %>% 
+  mutate(parts_per_set = round(set_num_parts_total / set_total, 2))
+
+# Number of sets released each year
+sets_time %>% 
+  ggplot(aes(x = year, y = set_total)) +
+  geom_line(size=1, color=legored) +
+  scale_x_continuous(breaks = seq(1950, 2020, 10),
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Year',
+       y='Number of Sets Released',
+       title='The Number of Lego Sets Released Each Year') +
+  theme(aspect.ratio=1/2)
+```
+
+### Average Number of Parts Per Set {data-height=600}
+```{r parts_time}
+sets_time %>% 
+  mutate(ma = zoo::rollmean(parts_per_set, 
+                            k = 5, 
+                            na.pad=TRUE)) %>% 
+  ggplot(aes(x = year)) +
+  geom_line(aes(y = parts_per_set), size=1, color=legoblue) +
+  geom_line(aes(y = ma), size=1, color=legogreen, lineheight=0.5) +
+  geom_text(label='Actual', color=legoblue, x=1951, y=103) +
+  geom_text(label='3-Year\nRolling\nAverage', color=legogreen, x=1952, y=53, lineheight=0.5) +
+  scale_x_continuous(breaks = seq(1950, 2020, 10),
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x='Year',
+       y='Average Number of Parts Per Set',
+       title='Are Lego Sets Getting More Complex?') +
+  theme(aspect.ratio=1/2)
+```
+
+
+
+
+Text {data-orientation=rows}
+=====================================
+
+Row {data-height=470}
+-------------------------------------
+### How are Lego sets and figures described? {data-width=170}
+These first two plots show how sets and minifigures differ in description length. While both have one-word descriptions the most often, minifigure descriptions have a wider range from 1-24 (compared to 1-17 for sets) and their distribution is less skewed.
+
+The longer descriptions are necessary for minifigures since they are all people or creatures that need to be distinguished, whereas the sets are more unique since they draw from more categories (buildings, vehicles, packs of bricks/pieces, etc.).
+
+
+### Chart {.no-title data-width=415}
+```{r wordcounts_set}
+# sentiment dictionary
+bing <- get_sentiments("bing")
+
+sets_text <- sets %>% 
+  select(set_num, set_name) %>% 
+  unnest_tokens(word, set_name) %>% 
+  left_join(bing)
+
+# number of words in set name
+sets_text %>% 
+  group_by(set_num) %>% 
+  summarize(num_words = n()) %>% 
+  ggplot(aes(x = num_words)) + 
+  geom_bar(fill=legored) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.01))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = 'Number of Words',
+       y = 'Frequency',
+       title = 'Distribution of Word Counts in Set Descriptions')
+```
+
+### Chart {.no-title data-width=415}
+```{r wordcounts_minifig}
+minifigs_text <- minifigs %>% 
+  select(minifig_id, minifig_name) %>% 
+  unnest_tokens(word, minifig_name) %>% 
+  left_join(bing)
+
+# number of words in minifig name
+minifigs_text %>% 
+  group_by(minifig_id) %>% 
+  summarize(num_words = n()) %>% 
+  ggplot(aes(x = num_words)) + 
+  geom_bar(fill=legoyellow) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.01))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = 'Number of Words',
+       y = 'Frequency',
+       title = 'Distribution of Word Counts in Minifigure Descriptions')
+```
+
+
+Row {data-height=575}
+-------------------------------------
+### More text {.no-title data-width=170}
+<br>
+Unsurprisingly, "set" is the most common word in set descriptions. Many of the other top ten words are very general descriptors that are used for packs of bricks. Sets that include "trucks" and "fire" are also common.
+
+<br>
+The top ten words for minifigure descriptions are all about distinguishing the three main pieces that make them ("legs", "hair"/"helmet", "torso"/jacket") with specific colors.
+
+
+### Chart {.no-title data-width=415}
+```{r topwords_set}
+# most common words
+sets_text %>%
+  anti_join(get_stopwords()) %>%  # removes stopwords
+  count(word, sort = TRUE) %>% 
+  head(10) %>% 
+  ggplot(aes(x=reorder(word, -n), y=n)) +
+  geom_col(fill=legored) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = element_blank(),
+       y = 'Frequency',
+       title = 'Most Common Words in Set Descriptions')
+```
+
+### Chart {.no-title data-width=415}
+```{r topwords_minifig}
+# most common words
+minifigs_text %>%
+  anti_join(get_stopwords()) %>%  # removes stopwords
+  count(word, sort = TRUE) %>% 
+  head(10) %>% 
+  ggplot(aes(x=reorder(word, -n), y=n)) +
+  geom_col(fill=legoyellow) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x = element_blank(),
+       y = 'Frequency',
+       title = 'Most Common Words in Minifigure Descriptions')
+```
+
+
+Row {data-height=675}
+-------------------------------------
+### More text {.no-title data-width=170}
+I also investigated how Lego used language with positive or negative connotations in their descriptions by using the [Bing Liu et al.'s sentiment lexicon](https://rdrr.io/cran/tidytext/man/sentiments.html) available in `tidytext`.
+
+First, all neutral words were removed, which made up about 95% of both the set and minifigure description vocabularies. Then some additional words marked as positive or negative were removed, since they were actually neutral in context. For instance, "dark" was a common negative word for minifigures but was actually used as a color modifier.
+
+Looking at the top 20 words for each, sets tend to have positive descriptors more often than minifigures. Many of these positive words for sets seem to be related to advertising (like "fun" and "creative"), but the minifigures do not use that advertising language.
+
+
+### Chart {.no-title data-width=415}
+```{r sentiment_set}
+# sentiment
+sets_sent_counts <- sets_text %>%
+  count(word, sentiment, sort = TRUE)
+
+sets_sent_counts %>%
+  filter(!is.na(sentiment),
+         !(word %in% c('stunt', 'buggy', 'limited'))) %>% # removed since these aren't pos/neg in lego context
+  head(20) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values=c(darkred, legored)) +
+  labs(x = element_blank(),
+       y = 'Frequency\n(Negative Frequencies used for Negative Words)',
+       title = 'Most Common Positive or Negative\nWords in Set Descriptions') +
+  theme(legend.position = 'none')
+```
+
+### Chart {.no-title data-width=415}
+```{r sentiment_minifig}
+# sentiment
+minifigs_sent_counts <- minifigs_text %>%
+  count(word, sentiment, sort = TRUE)
+
+minifigs_sent_counts %>%
+  filter(!is.na(sentiment),
+         !(word %in% c('dark', 'top', 'tank', 'bright', 'hard', 'gold'))) %>% # removed since these aren't pos/neg in lego context
+  head(20) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values=c(darkyellow, legoyellow)) +
+  labs(x = element_blank(),
+       y = 'Frequency\n(Negative Frequencies used for Negative Words)',
+       title = 'Most Common Positive or Negative\nWords in Minifigure Descriptions') +
+  theme(legend.position = 'none')
+```
